@@ -41,9 +41,10 @@ func (s *scanner) lines(start int) {
 		if end > start && s.data[end-1] == '\r' && terminated {
 			line.End--
 		}
-		if !bytes.ContainsAny(s.data[line.Start:line.End], "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0b\x0e\x0f") {
-			s.line(line, number, terminated)
+		if control := bytes.IndexAny(s.data[line.Start:line.End], "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0b\x0e\x0f"); control >= 0 {
+			line.End, terminated = line.Start+control, false
 		}
+		s.line(line, number, terminated)
 		start = end + 1
 	}
 }

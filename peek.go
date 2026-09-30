@@ -19,6 +19,7 @@ type Span struct {
 	End   int `json:"end"`
 }
 
+// Kind identifies the type of lexical evidence recorded by a claim.
 type Kind string
 
 const (
@@ -38,6 +39,7 @@ const (
 
 // Claim records lexical evidence, not a verified property of the file.
 // Value lies inside Evidence. Label names a BOM encoding; other values stay raw.
+// Rule identifies the matching convention. Evidence may grow as input is extended.
 type Claim struct {
 	Kind     Kind   `json:"kind"`
 	Rule     string `json:"rule"`
@@ -49,6 +51,8 @@ type Claim struct {
 // Result owns only its claim slice, never the input bytes.
 // InputComplete describes the caller's input, independently of resource limits.
 // BytesLimited and ClaimsLimited mean extraction omitted available data.
+// Claims may be nil when empty. Their order is not an API guarantee.
+// Copying a Result shares its claim storage.
 type Result struct {
 	InputBytes    int     `json:"input_bytes"`
 	InputComplete bool    `json:"input_complete"`
@@ -58,14 +62,17 @@ type Result struct {
 	Claims        []Claim `json:"claims"`
 }
 
+// Inspect extracts at most MaxClaims claims without modifying or retaining
+// input.Bytes. Each result has independent claim storage.
 func Inspect(input Input) Result {
 	var result Result
 	InspectInto(&result, input)
 	return result
 }
 
-// InspectInto replaces result and reuses its claim storage. Independent
-// results may be used concurrently. The caller must not mutate input during a call.
+// InspectInto replaces a non-nil result and reuses its claim storage, which may
+// overwrite earlier claims. Copy claims to retain them across calls. Independent
+// results may be used concurrently; do not mutate input.Bytes during a call.
 func InspectInto(result *Result, input Input) {
 	*result = Result{
 		InputBytes: len(input.Bytes), InputComplete: input.Complete,

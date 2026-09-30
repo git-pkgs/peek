@@ -10,6 +10,8 @@ import (
 	"github.com/git-pkgs/peek"
 )
 
+const utf32LEBOM = "\xff\xfe\x00\x00"
+
 func TestCorpus(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -48,18 +50,7 @@ func assertEveryCut(t *testing.T, data []byte) {
 	for cut := range len(data) + 1 {
 		prefix := peek.Inspect(peek.Input{Bytes: data[:cut]})
 		checkSpans(t, data[:cut], prefix)
-		for _, claim := range prefix.Claims {
-			found := false
-			for _, other := range full.Claims {
-				if claim.Kind == other.Kind && claim.Rule == other.Rule && claim.Value == other.Value && claim.Label == other.Label {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Fatalf("cut %d emitted a claim that later bytes invalidate: %+v", cut, claim)
-			}
-		}
+		assertClaimsPreserved(t, prefix, full)
 	}
 }
 
@@ -159,7 +150,7 @@ func TestHeaderConventions(t *testing.T) {
 func TestBOMs(t *testing.T) {
 	for _, tc := range []struct{ data, label string }{
 		{"\xef\xbb\xbf", "utf-8"}, {"\xff\xfeA\x00", "utf-16le"},
-		{"\xfe\xff\x00A", "utf-16be"}, {"\xff\xfe\x00\x00", "utf-32le"},
+		{"\xfe\xff\x00A", "utf-16be"}, {utf32LEBOM, "utf-32le"},
 		{"\x00\x00\xfe\xff", "utf-32be"},
 	} {
 		data := []byte(tc.data)
@@ -222,7 +213,7 @@ func TestConcurrentInspect(t *testing.T) {
 }
 
 func FuzzInspect(f *testing.F) {
-	for _, seed := range []string{"", "#!/bin/sh\n", "# SPDX-License-Identifier: MIT OR BSD-3-Clause", "<?xml encoding='UTF-8'?>", "https://example.org/ ", "\xff\xfe\x00\x00"} {
+	for _, seed := range []string{"", "#!/bin/sh\n", "# SPDX-License-Identifier: MIT OR BSD-3-Clause", "<?xml encoding='UTF-8'?>", "https://example.org/ ", utf32LEBOM} {
 		f.Add([]byte(seed), false)
 	}
 	f.Fuzz(func(t *testing.T, data []byte, complete bool) {

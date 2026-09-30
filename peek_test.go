@@ -1,10 +1,31 @@
 package peek_test
 
 import (
+	"bytes"
+	"reflect"
 	"testing"
 
 	"github.com/git-pkgs/peek"
 )
+
+func TestInspectStorage(t *testing.T) {
+	data := []byte("// SPDX-License-Identifier: MIT\n")
+	original := bytes.Clone(data)
+	first := peek.Inspect(peek.Input{Bytes: data})
+	second := peek.Inspect(peek.Input{Bytes: data})
+	if !bytes.Equal(data, original) || !reflect.DeepEqual(first, second) || len(first.Claims) != 1 {
+		t.Fatal("inspection changed the input or its results")
+	}
+	first.Claims[0].Rule = "changed"
+	if second.Claims[0].Rule != "spdx-license-tag" {
+		t.Fatal("Inspect results share claim storage")
+	}
+	retained := append([]peek.Claim(nil), second.Claims...)
+	peek.InspectInto(&second, peek.Input{Bytes: []byte("#!/bin/sh\n")})
+	if retained[0].Kind != peek.SPDXLicense || retained[0].Rule != "spdx-license-tag" {
+		t.Fatal("copied claims changed on reuse")
+	}
+}
 
 func TestShebangBoundary(t *testing.T) {
 	data := []byte("#!/usr/bin/env -S python3 -u")

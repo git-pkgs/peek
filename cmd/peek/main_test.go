@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -15,6 +16,28 @@ import (
 
 const bytesFlag = "-bytes"
 const prefixFlag = "-prefix"
+
+func TestCLIJSONContract(t *testing.T) {
+	for _, tc := range []struct{ input, output string }{
+		{"", `{"path":"-","input_bytes":0,"input_complete":true,"scanned_bytes":0,"bytes_limited":false,"claims_limited":false,"claims":[]}`},
+		{"\xef\xbb\xbf", `{"path":"-","input_bytes":3,"input_complete":true,"scanned_bytes":3,"bytes_limited":false,"claims_limited":false,"claims":[{"kind":"bom","rule":"byte-order-mark","evidence":{"start":0,"end":3},"value":{"start":0,"end":3},"label":"utf-8","text":"\ufeff"}]}`},
+	} {
+		var output bytes.Buffer
+		if err := run(nil, strings.NewReader(tc.input), &output, io.Discard); err != nil {
+			t.Fatal(err)
+		}
+		var got, want any
+		if err := json.Unmarshal(output.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal([]byte(tc.output), &want); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got %s, want %s", output.Bytes(), tc.output)
+		}
+	}
+}
 
 func TestCLICompleteness(t *testing.T) {
 	for _, tc := range []struct {
@@ -35,6 +58,7 @@ func TestCLICompleteness(t *testing.T) {
 		{"unmatched closer prefix", "SPDX-License-Identifier: MIT*/", []string{prefixFlag}, false, 0},
 		{"matched closer prefix", "/* SPDX-License-Identifier: MIT*/", []string{prefixFlag}, false, 1},
 		{"continuation closer prefix", "/*\n * SPDX-License-Identifier: MIT*/", []string{prefixFlag}, false, 1},
+		{"control after interpreter", "#!/bin/sh \x00suffix", nil, true, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var output, stderr bytes.Buffer

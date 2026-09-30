@@ -38,6 +38,11 @@ one result per concurrent worker. Both APIs leave the input in place and
 retain only offsets into it. Consume claim values before reusing the input
 buffer. The library has no mutable package state.
 
+`Inspect` returns independent claim storage. `InspectInto` requires a non-nil
+result and may overwrite its previous claims; copy the claim slice if you need
+to retain an earlier result. Copying a `Result` alone shares that slice. An empty
+claim slice may be nil.
+
 The command writes one JSON record per file, with claim text and byte ranges:
 
 ```bash
@@ -52,6 +57,12 @@ Use `-prefix` for an already truncated export or stream: its EOF does not
 establish the original file's EOF. A reader error fails the command. Invalid
 UTF-8 claim values include `raw_base64` to preserve their bytes in JSON.
 
+Each JSON record has `path`, `input_bytes`, `input_complete`, `scanned_bytes`,
+`bytes_limited`, `claims_limited`, and `claims` fields. `claims` is an array,
+including when empty. Each entry contains `kind`, `rule`, `evidence`, `value`,
+and `text`; `label` and `raw_base64` appear only when applicable. Span objects
+contain `start` and `end` offsets. Consumers should allow additional JSON fields.
+
 ## Claims
 
 Each `Claim` contains a `Kind`, a named `Rule`, an `Evidence` span and a `Value`
@@ -59,18 +70,24 @@ span. Spans are zero-based, half-open byte offsets into the original input;
 the value is inside the evidence. `Label` identifies a BOM encoding. Other
 values remain exactly as written, without normalizing case or licence names.
 
-| Kind | Supported evidence |
-| --- | --- |
-| `bom` | UTF-8, UTF-16 and UTF-32 byte-order marks |
-| `shebang`, `interpreter`, `interpreter-arguments` | `#!` at byte zero; executable path and unsplit argument text |
-| `encoding-declaration` | `coding:` or `coding=` in a hash comment on the first two lines; quoted XML prolog encoding |
-| `spdx-license` | A leading `SPDX-License-Identifier:` tag after an optional comment introducer |
-| `copyright` | `SPDX-FileCopyrightText:` or a leading case-insensitive `Copyright` notice |
-| `generated-marker` | `Code generated <text> DO NOT EDIT.` header convention |
-| `directive` | `//go:build`, `//go:generate`, and `#pragma` lines |
-| `source-reference` | Leading `source:` and `Generated from` header text |
-| `xml-declaration` | A closed `<?xml ... ?>` prolog at the start, optionally after a UTF-8 BOM |
-| `url` | Delimited lowercase `http://` and `https://` tokens |
+| Kind | Rule | Supported evidence |
+| --- | --- | --- |
+| `bom` | `byte-order-mark` | UTF-8, UTF-16 and UTF-32 byte-order marks |
+| `shebang`, `interpreter`, `interpreter-arguments` | `shebang-line`, `shebang-path`, `shebang-arguments` | `#!` at byte zero; executable path and unsplit argument text |
+| `encoding-declaration` | `coding-cookie`, `xml-encoding` | `coding:` or `coding=` in a hash comment on the first two lines; quoted XML prolog encoding |
+| `spdx-license` | `spdx-license-tag` | A leading `SPDX-License-Identifier:` tag after an optional comment introducer |
+| `copyright` | `spdx-copyright-tag`, `copyright-notice` | `SPDX-FileCopyrightText:` or a leading case-insensitive `Copyright` notice |
+| `generated-marker` | `go-generated-marker` | `Code generated <text> DO NOT EDIT.` header convention |
+| `directive` | `directive-line` | `//go:build`, `//go:generate`, and `#pragma` lines |
+| `source-reference` | `source-comment`, `generated-from-comment` | Leading `source:` and `Generated from` header text |
+| `xml-declaration` | `xml-prolog` | A closed `<?xml ... ?>` prolog at the start, optionally after a UTF-8 BOM |
+| `url` | `http-token` | Delimited lowercase `http://` and `https://` tokens |
+
+`Kind` identifies the observation type, and `Rule` identifies its matching
+convention. Consumers should allow new kinds and rules. Claim order has no API
+guarantee; sort by spans when source order is needed. As a prefix grows, a
+claim's evidence span may expand while its value span stays fixed. Repeated
+observations at different offsets remain separate claims.
 
 A matching header produces a claim even inside a multiline string or an
 example. An SPDX claim records the observed tag without validating its
@@ -106,9 +123,9 @@ ASTs, and semantic analysis belong to other tools.
 | `brief` | What higher-level classification can we infer? |
 
 Call `magic.DetectPrefix(data)` alongside `peek.Inspect` when content
-identification is useful; use `magic.Detect` only for complete content. Peek
-skips some lines containing control bytes, but it has no binary signatures
-or text/binary classification.
+identification is useful; use `magic.Detect` only for complete content. Peek's
+line-based extraction stops at certain control bytes and resumes on the next
+line. It has no binary signatures or text/binary classification.
 
 Use `archives` to expose member bytes and pass a bounded member prefix to
 `peek`. Keep archive input, expansion, member-count and nesting limits in the

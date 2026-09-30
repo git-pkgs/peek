@@ -38,6 +38,9 @@ jobs:
       - name: Fuzz bounded input
         if: runner.os == 'Linux'
         run: go test . -run '^$' -fuzz FuzzInspect -fuzztime 10s
+      - name: Fuzz prefix safety
+        if: runner.os == 'Linux'
+        run: go test . -run '^$' -fuzz FuzzPrefixSafety -fuzztime 10s
       - name: Build WASI
         if: runner.os == 'Linux'
         env:
