@@ -1,0 +1,7 @@
+/* SPDX-License-Identifier: (MIT OR Apache-2.0) */
+/* Copyright (c) 2026 Example Contributors */
+#pragma once
+// Generated from schema/message.idl
+// Protocol reference: https://example.org/protocol
+struct message {
+    unsigned int length;

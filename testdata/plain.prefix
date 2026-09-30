@@ -1,0 +1,5 @@
+This document contains ordinary prose.
+An SPDX-License-Identifier: example embedded in a sentence is not a header tag.
+const text = "SPDX-License-Identifier: MIT";
+// Copyrighted is not a copyright marker.
+// Code generated without a closing marker

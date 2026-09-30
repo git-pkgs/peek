@@ -1,0 +1,8 @@
+#!/usr/bin/env -S python3 -u
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# SPDX-FileCopyrightText: 2026 Example Contributors
+# See https://example.org/tooling for usage.
+import sys
+def main():
+    print("unfinished

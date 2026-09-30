@@ -1,0 +1,6 @@
+//go:build linux && arm64
+//go:generate stringer -type=State
+// Copyright 2026 Example Authors
+package state
+type State int
+const (

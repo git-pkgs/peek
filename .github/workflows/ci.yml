@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Build without CGO
+        env:
+          CGO_ENABLED: '0'
+        run: go build -v ./...
+      - name: Test without CGO
+        env:
+          CGO_ENABLED: '0'
+        run: go test ./...
+      - name: Test
+        run: go test -v -race -cover ./...
+      - name: Fuzz bounded input
+        if: runner.os == 'Linux'
+        run: go test . -run '^$' -fuzz FuzzInspect -fuzztime 10s
+      - name: Build WASI
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: '0'
+          GOOS: wasip1
+          GOARCH: wasm
+        run: go build -o "$RUNNER_TEMP/peek.wasm" ./cmd/peek
+      - name: Benchmarks
+        if: runner.os == 'Linux'
+        run: go test . -run '^$' -bench . -benchmem -benchtime 100ms
+      - name: Vet
+        run: go vet ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: latest
+          args: --enable gocritic,gocognit,gocyclo,maintidx,dupl,mnd,unparam,ireturn,goconst,errcheck ./...
+      - name: Check vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
