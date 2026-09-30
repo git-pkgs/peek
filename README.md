@@ -66,7 +66,7 @@ values remain exactly as written, without normalizing case or licence names.
 | `encoding-declaration` | `coding:` or `coding=` in a hash comment on the first two lines; quoted XML prolog encoding |
 | `spdx-license` | A leading `SPDX-License-Identifier:` tag after an optional comment introducer |
 | `copyright` | `SPDX-FileCopyrightText:` or a leading case-insensitive `Copyright` notice |
-| `generated-marker` | `Code generated <text>. DO NOT EDIT.` header convention |
+| `generated-marker` | `Code generated <text> DO NOT EDIT.` header convention |
 | `directive` | `//go:build`, `//go:generate`, and `#pragma` lines |
 | `source-reference` | Leading `source:` and `Generated from` header text |
 | `xml-declaration` | A closed `<?xml ... ?>` prolog at the start, optionally after a UTF-8 BOM |
@@ -76,7 +76,7 @@ A matching header produces a claim even inside a multiline string or an
 example. An SPDX claim records the observed tag without validating its
 expression or establishing the file's applicable licence. REUSE ignore
 blocks and snippet scopes are not interpreted. Generator names and versions
-remain together in the extracted text.
+remain together in the extracted text, including punctuation before ` DO NOT EDIT.`.
 
 Shebang arguments stay raw because kernel and `env` argument handling varies.
 For `#!/usr/bin/env -S python3 -u`, the interpreter claim is `/usr/bin/env` and

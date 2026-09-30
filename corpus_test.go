@@ -16,7 +16,7 @@ func TestCorpus(t *testing.T) {
 		values []string
 	}{
 		{"python", []string{"/usr/bin/env", "/usr/bin/env -S python3 -u", "-S python3 -u", "utf-8", "Apache-2.0 OR MIT", "2026 Example Contributors", "https://example.org/tooling"}},
-		{"generated", []string{"by protoc-gen-go", "schema/message.proto", "BSD-3-Clause"}},
+		{"generated", []string{"by protoc-gen-go.", "schema/message.proto", "BSD-3-Clause"}},
 		{"c", []string{"(MIT OR Apache-2.0)", "Copyright (c) 2026 Example Contributors", "#pragma once", "schema/message.idl", "https://example.org/protocol"}},
 		{"xml", []string{"<?xml version=\"1.0\"\n      encoding='UTF-8'?>", "UTF-8", "MIT", "https://example.org/schema"}},
 		{"build", []string{"//go:build linux && arm64", "//go:generate stringer -type=State", "Copyright 2026 Example Authors"}},

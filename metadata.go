@@ -99,7 +99,7 @@ func (s *scanner) copyright(line, body Span) {
 
 func (s *scanner) generated(line, body Span) {
 	const prefix = "Code generated "
-	const suffix = ". DO NOT EDIT."
+	const suffix = " DO NOT EDIT."
 	data := s.data[body.Start:body.End]
 	if bytes.HasPrefix(data, []byte(prefix)) && bytes.HasSuffix(data, []byte(suffix)) && len(data) > len(prefix)+len(suffix) {
 		s.field(Generated, "go-generated-marker", line, Span{body.Start + len(prefix), body.End - len(suffix)})

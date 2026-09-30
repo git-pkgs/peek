@@ -1,10 +1,57 @@
 package peek_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/git-pkgs/peek"
 )
+
+func TestGeneratedMarkerPunctuation(t *testing.T) {
+	for _, value := range []string{"by protoc-gen-go.", "from tree-sitter parser.c;", "by generator"} {
+		t.Run(value, func(t *testing.T) {
+			line := "// Code generated " + value + " DO NOT EDIT."
+			for _, ending := range []struct {
+				text     string
+				complete bool
+				count    int
+			}{
+				{"", false, 0}, {"", true, 1}, {"\n", false, 1}, {"\r\n", false, 1},
+			} {
+				data := []byte(line + ending.text)
+				result := peek.Inspect(peek.Input{Bytes: data, Complete: ending.complete})
+				if len(result.Claims) != ending.count {
+					t.Fatalf("ending=%q complete=%v: %+v", ending.text, ending.complete, result)
+				}
+				for _, claim := range result.Claims {
+					start := strings.Index(line, value)
+					if claim.Kind != peek.Generated || claim.Rule != "go-generated-marker" ||
+						claim.Value != (peek.Span{Start: start, End: start + len(value)}) ||
+						claim.Evidence != (peek.Span{Start: 0, End: len(line)}) {
+						t.Fatalf("unexpected generated marker: %+v", claim)
+					}
+				}
+			}
+			assertEveryCut(t, []byte(line+"\n"))
+		})
+	}
+}
+
+func TestGeneratedMarkerNonMatches(t *testing.T) {
+	for _, line := range []string{
+		"// Code generated  DO NOT EDIT.",
+		"// Code generated tool DO NOT EDIT",
+		"// Code generated tool DO NOT EDIT. extra",
+		"// Code generated tool.DO NOT EDIT.",
+	} {
+		data := []byte(line + "\n")
+		result := peek.Inspect(peek.Input{Bytes: data, Complete: true})
+		if len(result.Claims) != 0 {
+			t.Fatalf("%q: unexpected claims: %+v", line, result.Claims)
+		}
+		assertEveryCut(t, data)
+	}
+}
 
 func TestMetadataCommentTerminators(t *testing.T) {
 	const license = "MIT"
